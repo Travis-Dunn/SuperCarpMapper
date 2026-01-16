@@ -22,7 +22,8 @@ from mapper.constants import (
     WORLD_SIZE,
 )
 from mapper.map_io import load_map, save_map
-from mapper.modes import BlockedMode, EditorMode, ExamineMode, PaintTileMode
+from mapper.modes import BlockedMode, EditorMode, ExamineMode, PaintTileMode, SpawnMode
+from mapper.monsterspawn import MonsterSpawn
 from mapper.tile import Tile
 
 if TYPE_CHECKING:
@@ -50,6 +51,7 @@ class Mapper:
         # Editing state
         self.brush: int = 0
         self.tiles: dict[tuple[int, int], Tile] = {}
+        self.spawns: dict[tuple[int, int], MonsterSpawn] = {}
 
         # Navigation state
         self._is_panning: bool = False
@@ -78,6 +80,7 @@ class Mapper:
         self._register_mode("paint", PaintTileMode(self), "p")
         self._register_mode("blocked", BlockedMode(self), "b")
         self._register_mode("examine", ExamineMode(self), "e")
+        self._register_mode("spawn", SpawnMode(self), "s")
         self.set_mode("paint")
 
     def _register_mode(
@@ -237,7 +240,7 @@ class Mapper:
         """Handle hotkey presses."""
 
         # Ignore hotkeys when typing in a text widget
-        if isinstance(self.root.focus_get(), tk.Text):
+        if isinstance(self.root.focus_get(), (tk.Text, tk.Entry)):
             return
 
         key = event.char.lower()
@@ -441,6 +444,8 @@ class Mapper:
         # Update state
         self.tiles.clear()
         self.tiles.update(map_data.tiles)
+        self.spawns.clear()
+        self.spawns.update(map_data.spawns)
 
         # Redraw
         self._redraw_map_tiles()
@@ -458,7 +463,8 @@ class Mapper:
             self.center_view_on(0, 0)
 
         tile_count = len(self.tiles)
-        self.update_status(f"Loaded map: {map_data.name} ({tile_count} tiles)")
+        spawn_count = len(self.spawns)
+        self.update_status(f"Loaded map: {map_data.name} ({tile_count} tiles, {spawn_count} spawns)")
 
     def _redraw_map_tiles(self) -> None:
         """Clear and redraw all tiles on the map canvas."""
@@ -490,7 +496,7 @@ class Mapper:
             return
 
         try:
-            save_map(path, self.tiles, self.atlas_path)
+            save_map(path, self.tiles, self.spawns, self.atlas_path)
 
             # Calculate dimensions for status message
             min_x = min(x for x, y in self.tiles.keys())
@@ -500,8 +506,9 @@ class Mapper:
             width = max_x - min_x + 1
             height = max_y - min_y + 1
 
+            spawn_count = len(self.spawns)
             self.update_status(
-                f"Saved: {os.path.basename(path)} ({width}x{height}, {len(self.tiles)} tiles)"
+                f"Saved: {os.path.basename(path)} ({width}x{height}, {len(self.tiles)} tiles, {spawn_count} spawns)"
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save: {e}")
