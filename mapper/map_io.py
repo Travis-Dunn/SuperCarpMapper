@@ -56,6 +56,10 @@ class MapData:
     def tileset(self) -> str:
         return self.header.get("tileset", "unknown")
 
+    @property
+    def clear_color(self) -> str:
+        return self.header.get("clear_color", "#000000")
+
 
 # =============================================================================
 # Loading
@@ -229,7 +233,9 @@ def save_map(
     path: str,
     tiles: dict[tuple[int, int], Tile],
     spawns: dict[tuple[int, int], MonsterSpawn],
-    atlas_path: str | None
+    atlas_path: str | None,
+    map_name: str = "Untitled",
+    clear_color: str = "#000000"
 ) -> None:
     """
     Save a map to disk.
@@ -239,6 +245,8 @@ def save_map(
         tiles: Dictionary mapping (x, y) coordinates to Tiles.
         spawns: Dictionary mapping (x, y) coordinates to MonsterSpawns.
         atlas_path: Path to the atlas file (for header metadata).
+        map_name: Name of the map.
+        clear_color: Background/clear color as hex string (e.g. "#000000").
 
     Raises:
         IOError: If file cannot be written.
@@ -258,11 +266,12 @@ def save_map(
 
     with open(path, "w") as f:
         # Write header
-        f.write("name:Untitled\n")
+        f.write(f"name:{map_name}\n")
         f.write(f"width:{width}\n")
         f.write(f"height:{height}\n")
         f.write(f"origin:{min_x},{min_y}\n")
         f.write(f"tileset:{atlas_name}\n")
+        f.write(f"clear_color:{clear_color}\n")
         f.write("---\n")
 
         # Write tiles

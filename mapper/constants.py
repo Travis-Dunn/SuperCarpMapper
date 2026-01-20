@@ -14,3 +14,24 @@ WORLD_SIZE: int = WORLD_OFFSET * 2  # 1024 tiles total
 
 # Grid display range (centered on origin)
 GRID_RANGE: int = 64
+
+# Fixed color palette (RGB tuples)
+# Used for clear color and any other palette-based color selection
+PALETTE: list[tuple[int, int, int]] = [
+    (22, 13, 19),
+    (49, 41, 62),
+    (77, 102, 96),
+    (149, 182, 102),
+    (239, 158, 78),
+    (173, 64, 48),
+    (86, 33, 42),
+    (144, 75, 65),
+    (166, 153, 152),
+    (95, 87, 94),
+    (142, 184, 158),
+    (246, 242, 195),
+    (231, 155, 124),
+    (155, 76, 99),
+    (67, 33, 66),
+    (209, 147, 95),
+]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageTk
@@ -21,6 +21,7 @@ from mapper.constants import (
     WORLD_OFFSET,
     WORLD_SIZE,
 )
+from mapper.dialogs import ColorPickerDialog
 from mapper.map_io import load_map, save_map
 from mapper.modes import BlockedMode, EditorMode, ExamineMode, PaintTileMode, SpawnMode
 from mapper.monsterspawn import MonsterSpawn
@@ -52,6 +53,10 @@ class Mapper:
         self.brush: int = 0
         self.tiles: dict[tuple[int, int], Tile] = {}
         self.spawns: dict[tuple[int, int], MonsterSpawn] = {}
+
+        # Map metadata
+        self.map_name: str = "Untitled"
+        self.clear_color: str = "#000000"
 
         # Navigation state
         self._is_panning: bool = False
@@ -167,7 +172,11 @@ class Mapper:
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
 
+        map_menu = tk.Menu(menubar, tearoff=0)
+        map_menu.add_command(label="Properties...", command=self._edit_map_properties)
+
         menubar.add_cascade(label="File", menu=file_menu)
+        menubar.add_cascade(label="Map", menu=map_menu)
         self.root.config(menu=menubar)
 
     def _setup_main_layout(self) -> None:
@@ -418,6 +427,33 @@ class Mapper:
         self.update_status(f"Loaded atlas: {os.path.basename(path)} ({tile_count} tiles)")
 
     # =========================================================================
+    # Map Properties
+    # =========================================================================
+
+    def _edit_map_properties(self) -> None:
+        """Open dialog to edit map-level properties."""
+        # Edit map name
+        new_name = simpledialog.askstring(
+            "Map Name",
+            "Enter map name:",
+            initialvalue=self.map_name,
+            parent=self.root
+        )
+        if new_name is not None:
+            self.map_name = new_name.strip() or "Untitled"
+
+        # Edit clear color using palette picker
+        dialog = ColorPickerDialog(
+            self.root,
+            current_color=self.clear_color,
+            title="Clear Color"
+        )
+        if dialog.result is not None:
+            self.clear_color = dialog.result
+
+        self.update_status(f"Map: '{self.map_name}', clear color: {self.clear_color}")
+
+    # =========================================================================
     # Map I/O
     # =========================================================================
 
@@ -446,6 +482,10 @@ class Mapper:
         self.tiles.update(map_data.tiles)
         self.spawns.clear()
         self.spawns.update(map_data.spawns)
+
+        # Update map metadata
+        self.map_name = map_data.name
+        self.clear_color = map_data.clear_color
 
         # Redraw
         self._redraw_map_tiles()
@@ -496,7 +536,14 @@ class Mapper:
             return
 
         try:
-            save_map(path, self.tiles, self.spawns, self.atlas_path)
+            save_map(
+                path,
+                self.tiles,
+                self.spawns,
+                self.atlas_path,
+                self.map_name,
+                self.clear_color
+            )
 
             # Calculate dimensions for status message
             min_x = min(x for x, y in self.tiles.keys())
