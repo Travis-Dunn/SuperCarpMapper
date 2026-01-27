@@ -29,24 +29,7 @@ class PaintTileMode(EditorMode):
         return "LMB: Paint | Ctrl+LMB: Pan | Hotkeys: [P]aint [B]locked"
 
     def on_activate(self) -> None:
-        self._update_brush_status()
-
-    def _update_brush_status(self) -> None:
-        """Update status bar with current brush info including defaults."""
-        editor = self.editor
-        brush = editor.brush
-
-        defaults = editor.tile_defaults.get(brush)
-        if defaults:
-            blocked_str = "blocked" if defaults.blocked else "passable"
-            if defaults.examine_text:
-                self.editor.update_status(
-                    f"Brush: tile {brush} ({blocked_str}, \"{defaults.examine_text}\")"
-                )
-            else:
-                self.editor.update_status(f"Brush: tile {brush} ({blocked_str})")
-        else:
-            self.editor.update_status(f"Brush: tile {brush}")
+        self.editor.update_status(f"Brush: tile {self.editor.brush}")
 
     def on_map_click(self, world_x: int, world_y: int, event: tk.Event) -> None:
         self._paint_tile(world_x, world_y)
@@ -87,18 +70,11 @@ class PaintTileMode(EditorMode):
             tags=("maptile", f"maptile_{tile_x}_{tile_y}")
         )
 
-        # Get defaults for this brush (if any)
-        defaults = editor.tile_defaults.get(editor.brush)
-        blocked = defaults.blocked if defaults else False
-        examine_text = defaults.examine_text if defaults else None
-
-        # Create new tile with defaults (overwrites any existing tile completely)
-        # Note: spawns at this location are preserved
-        editor.tiles[coords] = Tile(
-            sprite=editor.brush,
-            blocked=blocked,
-            examine_text=examine_text
-        )
+        # Update or create tile
+        if existing:
+            existing.sprite = editor.brush
+        else:
+            editor.tiles[coords] = Tile(sprite=editor.brush)
 
     def build_panel(self, parent: tk.Frame) -> tk.Frame:
         """Build the tile palette panel."""
@@ -207,4 +183,4 @@ class PaintTileMode(EditorMode):
         if idx in editor.tile_images:
             editor.brush = idx
             self._highlight_brush(tiles_per_row)
-            self._update_brush_status()
+            editor.update_status(f"Brush: tile {idx}")

@@ -26,7 +26,6 @@ from mapper.map_io import load_map, save_map
 from mapper.modes import BlockedMode, EditorMode, ExamineMode, PaintTileMode, SpawnMode
 from mapper.monsterspawn import MonsterSpawn
 from mapper.tile import Tile
-from mapper.tile_defaults import TileDefaults, load_tile_defaults
 
 if TYPE_CHECKING:
     pass
@@ -49,7 +48,6 @@ class Mapper:
         self.atlas_image: Image.Image | None = None
         self.tile_images: dict[int, ImageTk.PhotoImage] = {}
         self.tile_pil_images: dict[int, Image.Image] = {}
-        self.tile_defaults: dict[int, TileDefaults] = {}
 
         # Editing state
         self.brush: int = 0
@@ -327,25 +325,16 @@ class Mapper:
 
     def center_view_on(self, world_x: int, world_y: int) -> None:
         """Center the map view on a world coordinate."""
-        # Ensure geometry is calculated
-        self.map_canvas.update_idletasks()
-
         canvas_x = self.world_to_canvas_x(world_x)
         canvas_y = self.world_to_canvas_y(world_y)
 
         total_size = WORLD_SIZE * DISPLAY_SIZE
 
-        # Get actual viewport dimensions
-        viewport_width = self.map_canvas.winfo_width()
-        viewport_height = self.map_canvas.winfo_height()
+        frac_x = canvas_x / total_size
+        frac_y = canvas_y / total_size
 
-        # Calculate fraction so target point is centered in viewport
-        # left_edge = canvas_x - viewport_width/2
-        frac_x = (canvas_x - viewport_width / 2) / total_size
-        frac_y = (canvas_y - viewport_height / 2) / total_size
-
-        self.map_canvas.xview_moveto(max(0.0, min(1.0, frac_x)))
-        self.map_canvas.yview_moveto(max(0.0, min(1.0, frac_y)))
+        self.map_canvas.xview_moveto(max(0, frac_x - 0.1))
+        self.map_canvas.yview_moveto(max(0, frac_y - 0.1))
 
     # =========================================================================
     # Map Grid
@@ -433,19 +422,9 @@ class Mapper:
             self.tile_pil_images[idx] = tile_pil
             self.tile_images[idx] = tile_tk
 
-        # Load tile defaults from companion file
-        self.tile_defaults = load_tile_defaults(path)
-        defaults_count = len(self.tile_defaults)
-
         self.brush = 0
         self._rebuild_panel()
-
-        if defaults_count > 0:
-            self.update_status(
-                f"Loaded atlas: {os.path.basename(path)} ({tile_count} tiles, {defaults_count} defaults)"
-            )
-        else:
-            self.update_status(f"Loaded atlas: {os.path.basename(path)} ({tile_count} tiles, no .tiles file)")
+        self.update_status(f"Loaded atlas: {os.path.basename(path)} ({tile_count} tiles)")
 
     # =========================================================================
     # Map Properties
