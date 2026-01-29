@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from PIL import Image, ImageTk
 
+from mapper.character import Character
 from mapper.constants import (
     DISPLAY_SIZE,
     GRID_RANGE,
@@ -23,7 +24,14 @@ from mapper.constants import (
 )
 from mapper.dialogs import ColorPickerDialog
 from mapper.map_io import load_map, save_map
-from mapper.modes import BlockedMode, EditorMode, ExamineMode, PaintTileMode, SpawnMode
+from mapper.modes import (
+    BlockedMode,
+    CharacterMode,
+    EditorMode,
+    ExamineMode,
+    PaintTileMode,
+    SpawnMode,
+)
 from mapper.monsterspawn import MonsterSpawn
 from mapper.tile import Tile
 from mapper.tile_defaults import TileDefaults, load_tile_defaults
@@ -55,6 +63,7 @@ class Mapper:
         self.brush: int = 0
         self.tiles: dict[tuple[int, int], Tile] = {}
         self.spawns: dict[tuple[int, int], MonsterSpawn] = {}
+        self.characters: dict[tuple[int, int], Character] = {}
 
         # Map metadata
         self.map_name: str = "Untitled"
@@ -88,6 +97,7 @@ class Mapper:
         self._register_mode("blocked", BlockedMode(self), "b")
         self._register_mode("examine", ExamineMode(self), "e")
         self._register_mode("spawn", SpawnMode(self), "s")
+        self._register_mode("character", CharacterMode(self), "c")
         self.set_mode("paint")
 
     def _register_mode(
@@ -503,6 +513,8 @@ class Mapper:
         self.tiles.update(map_data.tiles)
         self.spawns.clear()
         self.spawns.update(map_data.spawns)
+        self.characters.clear()
+        self.characters.update(map_data.characters)
 
         # Update map metadata
         self.map_name = map_data.name
@@ -525,7 +537,10 @@ class Mapper:
 
         tile_count = len(self.tiles)
         spawn_count = len(self.spawns)
-        self.update_status(f"Loaded map: {map_data.name} ({tile_count} tiles, {spawn_count} spawns)")
+        char_count = len(self.characters)
+        self.update_status(
+            f"Loaded map: {map_data.name} ({tile_count} tiles, {spawn_count} spawns, {char_count} characters)"
+        )
 
     def _redraw_map_tiles(self) -> None:
         """Clear and redraw all tiles on the map canvas."""
@@ -561,6 +576,7 @@ class Mapper:
                 path,
                 self.tiles,
                 self.spawns,
+                self.characters,
                 self.atlas_path,
                 self.map_name,
                 self.clear_color
@@ -575,8 +591,10 @@ class Mapper:
             height = max_y - min_y + 1
 
             spawn_count = len(self.spawns)
+            char_count = len(self.characters)
             self.update_status(
-                f"Saved: {os.path.basename(path)} ({width}x{height}, {len(self.tiles)} tiles, {spawn_count} spawns)"
+                f"Saved: {os.path.basename(path)} ({width}x{height}, {len(self.tiles)} tiles, "
+                f"{spawn_count} spawns, {char_count} characters)"
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save: {e}")

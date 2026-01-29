@@ -9,6 +9,8 @@ File format:
     Examine text (tab-delimited: x	y	text)
     --- spawns
     Spawn data (tab-delimited: x	y	name	respawn_ticks)
+    --- characters
+    Character data (tab-delimited: x	y	name)
     --- <future sections>
     ...
 
@@ -33,6 +35,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from mapper.character import Character
 from mapper.monsterspawn import MonsterSpawn
 from mapper.tile import Tile
 
@@ -47,6 +50,7 @@ class MapData:
         self.header: dict[str, str] = {}
         self.tiles: dict[tuple[int, int], Tile] = {}
         self.spawns: dict[tuple[int, int], MonsterSpawn] = {}
+        self.characters: dict[tuple[int, int], Character] = {}
 
     @property
     def name(self) -> str:
@@ -74,7 +78,7 @@ def load_map(path: str, valid_sprite_indices: set[int]) -> MapData:
         valid_sprite_indices: Set of valid sprite indices from loaded atlas.
 
     Returns:
-        MapData containing header info, tiles, and spawns.
+        MapData containing header info, tiles, spawns, and characters.
 
     Raises:
         IOError: If file cannot be read.
@@ -117,6 +121,8 @@ def _parse_map_file(f: TextIO, valid_sprite_indices: set[int]) -> MapData:
             _parse_examine_line(line, line_num, data.tiles)
         elif current_section == "spawns":
             _parse_spawn_line(line, line_num, data.spawns)
+        elif current_section == "characters":
+            _parse_character_line(line, line_num, data.characters)
         # Unknown sections are silently skipped (forward compatibility)
 
     return data
@@ -225,6 +231,37 @@ def _parse_spawn_line(
         print(f"Warning line {line_num}: failed to parse spawn line: {e}")
 
 
+def _parse_character_line(
+    line: str,
+    line_num: int,
+    characters: dict[tuple[int, int], Character]
+) -> None:
+    """
+    Parse a character line and add to characters dict.
+
+    Format: x	y	name (tab-delimited)
+    """
+    parts = line.split("\t")
+
+    if len(parts) < 3:
+        print(f"Warning line {line_num}: insufficient fields in characters section")
+        return
+
+    try:
+        x = int(parts[0])
+        y = int(parts[1])
+        name = parts[2]
+
+        if not name:
+            print(f"Warning line {line_num}: empty character name")
+            return
+
+        characters[(x, y)] = Character(name=name)
+
+    except ValueError as e:
+        print(f"Warning line {line_num}: failed to parse character line: {e}")
+
+
 # =============================================================================
 # Saving
 # =============================================================================
@@ -233,6 +270,7 @@ def save_map(
     path: str,
     tiles: dict[tuple[int, int], Tile],
     spawns: dict[tuple[int, int], MonsterSpawn],
+    characters: dict[tuple[int, int], Character],
     atlas_path: str | None,
     map_name: str = "Untitled",
     clear_color: str = "#000000"
@@ -244,6 +282,7 @@ def save_map(
         path: Destination file path.
         tiles: Dictionary mapping (x, y) coordinates to Tiles.
         spawns: Dictionary mapping (x, y) coordinates to MonsterSpawns.
+        characters: Dictionary mapping (x, y) coordinates to Characters.
         atlas_path: Path to the atlas file (for header metadata).
         map_name: Name of the map.
         clear_color: Background/clear color as hex string (e.g. "#000000").
@@ -285,6 +324,9 @@ def save_map(
         # Write spawns section (only if any spawns exist)
         _write_spawns_section(f, spawns)
 
+        # Write characters section (only if any characters exist)
+        _write_characters_section(f, characters)
+
 
 def _serialize_tile(x: int, y: int, tile: Tile) -> str:
     """
@@ -322,3 +364,16 @@ def _write_spawns_section(
     f.write("--- spawns\n")
     for (x, y), spawn in sorted(spawns.items()):
         f.write(f"{x}\t{y}\t{spawn.name}\t{spawn.respawn_ticks}\n")
+
+
+def _write_characters_section(
+    f: TextIO,
+    characters: dict[tuple[int, int], Character]
+) -> None:
+    """Write the characters section if any characters exist."""
+    if not characters:
+        return
+
+    f.write("--- characters\n")
+    for (x, y), character in sorted(characters.items()):
+        f.write(f"{x}\t{y}\t{character.name}\n")
